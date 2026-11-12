@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EcoSort AI — Waste Vision Dashboard, RCA & AI Assistant</title>
+  <!-- Chart.js CDN for Analytics & Visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="/static/css/style.css?v=3.6">
+  <style>
+    /* Inlined Core Theme for Cache-Proof Clean White, Blue, & Purple Rendering */
+    :root {
+      --bg-body: #f8fafc;
+      --bg-card: #ffffff;
+      --border-color: #e2e8f0;
+      --primary-blue: #2563eb;
+      --primary-purple: #7c3aed;
+      --text-dark: #0f172a;
+      --text-muted: #64748b;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; }
+    body { background-color: #f8fafc !important; color: #0f172a !important; display: flex; min-height: 100vh; overflow-x: hidden; }
+    .sidebar { width: 250px; background: #ffffff !important; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; z-index: 100; box-shadow: 2px 0 10px rgba(0,0,0,0.02); }
+    .brand { padding: 20px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #e2e8f0; }
+    .brand-icon { width: 40px; height: 40px; background: linear-gradient(135deg, #2563eb, #7c3aed); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+    .brand-title { font-size: 1.15rem; font-weight: 800; background: linear-gradient(135deg, #2563eb, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .brand-subtitle { font-size: 0.72rem; color: #64748b; font-weight: 500; }
+    .nav-links { list-style: none; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; overflow-y: auto; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px; color: #334155; text-decoration: none; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .nav-item:hover { background: #f1f5f9; color: #7c3aed; }
+    .nav-item.active { background: linear-gradient(135deg, #2563eb, #7c3aed) !important; color: #ffffff !important; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25); }
+    .main-wrapper { margin-left: 250px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; background-color: #f8fafc; }
+    .topbar { height: 64px; background: #ffffff !important; border-bottom: 1px solid #e2e8f0; padding: 0 30px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 90; }
+    .content-body { padding: 24px 30px; flex: 1; }
+    .card { background: #ffffff !important; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    
+    /* 3 Macro Cards */
+    .macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+    @media (max-width: 900px) { .macro-grid { grid-template-columns: 1fr; } }
+    .macro-card { background: #ffffff !important; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; position: relative; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .macro-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+    .macro-card.anorganik::before { background: #2563eb; }
+    .macro-card.organik::before { background: #10b981; }
+    .macro-card.berbahaya::before { background: #7c3aed; }
+    .macro-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .macro-title { font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .macro-count { font-size: 2rem; font-weight: 800; line-height: 1; margin-bottom: 6px; }
+    .macro-desc { font-size: 0.8rem; color: #64748b; line-height: 1.4; }
+    .macro-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .pill-sm { font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+    
+    /* KPI Grid */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .kpi-card { background: #ffffff !important; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .kpi-info h3 { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 4px; }
+    .kpi-info .kpi-value { font-size: 1.7rem; font-weight: 800; color: #0f172a; }
+    .kpi-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+
+    /* Floating Chatbot Widget */
+    .chatbot-widget-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2563eb, #7c3aed) !important;
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 10px 25px rgba(124, 58, 237, 0.4);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .chatbot-widget-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 15px 35px rgba(124, 58, 237, 0.5);
+    }
+    .chat-modal {
+      position: fixed;
+      bottom: 92px;
+      right: 24px;
+      width: 390px;
+      max-width: calc(100vw - 40px);
+      height: 520px;
+      max-height: calc(100vh - 120px);
+      background: #ffffff !important;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.15);
+      display: none !important;
+      flex-direction: column;
+      z-index: 10000;
+      overflow: hidden;
+    }
+    .chat-modal.open {
+      display: flex !important;
+      animation: popIn 0.25s ease-out;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: translateY(15px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">♻️</div>
+      <div>
+        <div class="brand-title">EcoSort AI</div>
+        <div class="brand-subtitle">Smart Vision & RCA Platform</div>
+      </div>
+    </div>
+
+    <ul class="nav-links">
+      <li>
+        <a class="nav-item active" data-tab="overview">
+          <span class="icon">📊</span> Overview
+        </a>
+      </li>
+      <li>
+        <a class="nav-item" data-tab="live">
+          <span class="icon">📹</span> Live Detection
+        </a>
+      </li>
+      <li>
+        <a class="nav-item" data-tab="history">
+          <span class="icon">📜</span> Riwayat Deteksi
+        </a>
+      </li>
+      <li>
+        <a class="nav-item" data-tab="rca">
+          <span class="icon">🔍</span> RCA Diagnostics
+        </a>
+      </li>
+      <li>
+        <a class="nav-item" data-tab="analytics">
+          <span class="icon">📈</span> Analytics
+        </a>
+      </li>
+      <li>
+        <a class="nav-item" data-tab="notifications">
+          <span class="icon">🔔</span> Notifikasi
+        </a>
+      </li>
+      <li>
+        <a class="nav-item" data-tab="reports">
+          <span class="icon">📄</span> Laporan PDF
+        </a>
+      </li>
+      <li>
+        <a class="nav-item" data-tab="settings">
+          <span class="icon">⚙️</span> Pengaturan
+        </a>
+      </li>
+      <li>
+        <a class="nav-item" data-tab="requirements">
+          <span class="icon">📋</span> Requirements
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div style="font-weight:700; color:#4338ca;">EcoSort AI v1.1.0</div>
+      <div style="margin-top:4px;">Meja Pemilahan Otomatis & Analisis RCA</div>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <div class="main-wrapper">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="page-heading" id="page-title">Dashboard Overview</h1>
+      </div>
+      <div class="topbar-right">
+        <span id="badge-ws" class="badge badge-warning">
+          <span class="badge-dot"></span> Menghubungkan...
+        </span>
+        <span id="badge-camera" class="badge badge-warning">
+          <span class="badge-dot"></span> Camera Idle
+        </span>
+        <span id="badge-model" class="badge badge-purple">
+          <span class="badge-dot"></span> Model Ready
+        </span>
+      </div>
+    </header>
+
+    <!-- Body View Panes -->
+    <main class="content-body">
+
+      <!-- TAB 1: OVERVIEW -->
+      <section id="tab-overview" class="tab-pane active">
+        <!-- 3 Macro Category Summary Banner (Organik, Anorganik, Berbahaya) -->
+        <div class="macro-grid">
+          <!-- Anorganik Card -->
+          <div class="macro-card anorganik">
+            <div class="macro-header">
+              <div class="macro-title" style="color:var(--primary-blue);">
+                <span>🧴</span> Anorganik
+              </div>
+              <span class="pill-sm" style="background:#eff6ff; color:#2563eb;">Plastik & Kaca</span>
+            </div>
+            <div class="macro-count" id="macro-count-anorganik" style="color:var(--primary-blue);">0</div>
+            <div class="macro-desc">Botol plastik, kantong kresek, dan botol kaca. Sulit terurai secara alami, disortir untuk pabrik daur ulang polimer/silika.</div>
+            <div class="macro-pills">
+              <span class="pill-sm" style="background:#eff6ff; color:#2563eb;">plastic_bottle</span>
+              <span class="pill-sm" style="background:#ecfeff; color:#0891b2;">plastic_bag</span>
+              <span class="pill-sm" style="background:#e0e7ff; color:#4338ca;">glass_bottle</span>
+            </div>
+          </div>
+
+          <!-- Organik Card -->
+          <div class="macro-card organik">
+            <div class="macro-header">
+              <div class="macro-title" style="color:#059669;">
+                <span>🍃</span> Organik
+              </div>
+              <span class="pill-sm" style="background:#f0fdf4; color:#059669;">Serat Selulosa</span>
+            </div>
+            <div class="macro-count" id="macro-count-organik" style="color:#059669;">0</div>
+            <div class="macro-desc">Kertas dokumen, koran, dan kardus karton. Dapat terurai dan diproses kembali menjadi bubur kertas (pulp) atau kompos.</div>
+            <div class="macro-pills">
+              <span class="pill-sm" style="background:#f0fdf4; color:#059669;">paper</span>
+              <span class="pill-sm" style="background:#ecfdf5; color:#047857;">cardboard</span>
+            </div>
+          </div>
+
+          <!-- Berbahaya Card -->
+          <div class="macro-card berbahaya">
+            <div class="macro-header">
+              <div class="macro-title" style="color:var(--primary-purple);">
+                <span>⚠️</span> Berbahaya
+              </div>
+              <span class="pill-sm" style="background:#f5f3ff; color:#7c3aed;">Logam / B3</span>
+            </div>
+            <div class="macro-count" id="macro-count-berbahaya" style="color:var(--primary-purple);">0</div>
+            <div class="macro-desc">Kaleng minuman aluminium, timah, dan aerosol. Memiliki risiko tepi tajam, percikan, dan residu kimia berbahaya.</div>
+            <div class="macro-pills">
+              <span class="pill-sm" style="background:#f5f3ff; color:#7c3aed;">metal_can (Kaleng Logam)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <h3>Total Deteksi Objek</h3>
+              <div class="kpi-value" id="kpi-total-detections">0</div>
+            </div>
+            <div class="kpi-icon" style="background:#eff6ff; color:#2563eb;">📦</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <h3>Notifikasi Belum Dibaca</h3>
+              <div class="kpi-value" id="notif-unread-count">0</div>
+            </div>
+            <div class="kpi-icon" style="background:#fffbeb; color:#d97706;">🔔</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <h3>Status Kamera</h3>
+              <div class="kpi-value" style="font-size:1.2rem; color:#2563eb;" id="kpi-camera-status">Tersedia</div>
+            </div>
+            <div class="kpi-icon" style="background:#eff6ff; color:#2563eb;">📹</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <h3>RCA & Diagnostik</h3>
+              <div class="kpi-value" style="font-size:1.2rem; color:#7c3aed;" id="kpi-rca-status">4 Skenario</div>
+            </div>
+            <div class="kpi-icon" style="background:#f5f3ff; color:#7c3aed;">🔍</div>
+          </div>
+        </div>
+
+        <!-- 6 Official Classes Breakdown Cards -->
+        <div class="class-grid">
+          <div class="class-card">
+            <div class="class-card-top">
+              <span class="class-name">0. plastic_bottle</span>
+              <span class="pill-sm" style="background:#eff6ff; color:#2563eb;">Anorganik</span>
+            </div>
+            <div class="class-count" id="count-plastic_bottle" style="color:#2563eb">0</div>
+          </div>
+          <div class="class-card">
+            <div class="class-card-top">
+              <span class="class-name">1. plastic_bag</span>
+              <span class="pill-sm" style="background:#eff6ff; color:#2563eb;">Anorganik</span>
+            </div>
+            <div class="class-count" id="count-plastic_bag" style="color:#06b6d4">0</div>
+          </div>
+          <div class="class-card">
+            <div class="class-card-top">
+              <span class="class-name">2. paper</span>
+              <span class="pill-sm" style="background:#f0fdf4; color:#059669;">Organik</span>
+            </div>
+            <div class="class-count" id="count-paper" style="color:#10b981">0</div>
+          </div>
+          <div class="class-card">
+            <div class="class-card-top">
+              <span class="class-name">3. cardboard</span>
+              <span class="pill-sm" style="background:#f0fdf4; color:#059669;">Organik</span>
+            </div>
+            <div class="class-count" id="count-cardboard" style="color:#059669">0</div>
+          </div>
+          <div class="class-card">
+            <div class="class-card-top">
+              <span class="class-name">4. metal_can</span>
+              <span class="pill-sm" style="background:#f5f3ff; color:#7c3aed;">Berbahaya</span>
+            </div>
+            <div class="class-count" id="count-metal_can" style="color:#7c3aed">0</div>
+          </div>
+          <div class="class-card">
+            <div class="class-card-top">
+              <span class="class-name">5. glass_bottle</span>
+              <span class="pill-sm" style="background:#eff6ff; color:#2563eb;">Anorganik</span>
+            </div>
+            <div class="class-count" id="count-glass_bottle" style="color:#6366f1">0</div>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">📈 Tren Deteksi Waktu Nyata (24 Jam Terakhir)</div>
+            </div>
+            <div style="height: 280px; position:relative;">
+              <canvas id="chart-timeline"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🍩 Proporsi Kategori Sampah (Pilahan)</div>
+            </div>
+            <div style="height: 280px; position:relative;">
+              <canvas id="chart-distribution"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: LIVE DETECTION -->
+      <section id="tab-live" class="tab-pane">
+        <div class="live-layout">
+          <!-- Video Monitor Box -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">📹 Tampilan Langsung Meja Pemilahan Sampah</div>
+              <div id="live-fps" class="badge badge-purple">0.0 FPS</div>
+            </div>
+
+            <div class="video-container">
+              <img id="live-video-stream" class="video-stream" src="" alt="Live Feed" style="display:none;">
+              <div id="live-placeholder" class="video-placeholder">
+                <div style="font-size:3.5rem;">📷</div>
+                <div style="font-size:1.15rem; font-weight:700; color:#fff;">Kamera Sedang Tidak Aktif</div>
+                <p style="font-size:0.88rem; max-width:340px; text-align:center; color:#cbd5e1;">
+                  Klik tombol <strong>"Mulai Kamera"</strong> di bawah untuk mengaktifkan video feed, pelacakan objek, dan garis virtual penghitungan.
+                </p>
+              </div>
+            </div>
+
+            <div class="video-controls">
+              <button id="btn-start-cam" onclick="startCamera()" class="btn btn-primary">
+                ▶ Mulai Kamera
+              </button>
+              <button id="btn-stop-cam" onclick="stopCamera()" class="btn btn-danger" style="display:none;">
+                ⏹ Hentikan Kamera
+              </button>
+              <button onclick="switchTab('settings')" class="btn btn-outline">
+                ⚙️ Atur Garis Virtual
+              </button>
+              <button onclick="toggleChatModal(); sendFloatPrompt('Bagaimana cara menangani sampah berbahaya yang sedang lewat?');" class="btn btn-outline" style="color:#7c3aed; border-color:#ddd6fe;">
+                🤖 Tanya Asisten AI
+              </button>
+            </div>
+          </div>
+
+          <!-- Session Live Counts Panel Grouped by Macro Category -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🔢 Hitungan Sesi Berjalan</div>
+            </div>
+            <div style="background:#f8faff; border:1px solid #e2e8f0; border-radius:12px; padding:18px; margin-bottom:18px; text-align:center;">
+              <div style="font-size:0.75rem; color:#64748b; font-weight:700; text-transform:uppercase;">Total Objek Lewat Garis</div>
+              <div id="live-session-total" style="font-size:2.4rem; font-weight:800; color:#7c3aed; margin-top:4px;">0</div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <!-- Anorganik Section -->
+              <div style="background:#eff6ff; border-radius:8px; padding:10px; border-left:4px solid #2563eb;">
+                <div style="font-size:0.75rem; font-weight:800; color:#2563eb; text-transform:uppercase; margin-bottom:4px;">
+                  🧴 Anorganik (Plastik & Kaca)
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; padding:2px 0;">
+                  <span>plastic_bottle</span><strong id="live-cnt-plastic_bottle">0</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; padding:2px 0;">
+                  <span>plastic_bag</span><strong id="live-cnt-plastic_bag">0</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; padding:2px 0;">
+                  <span>glass_bottle</span><strong id="live-cnt-glass_bottle">0</strong>
+                </div>
+              </div>
+
+              <!-- Organik Section -->
+              <div style="background:#f0fdf4; border-radius:8px; padding:10px; border-left:4px solid #10b981;">
+                <div style="font-size:0.75rem; font-weight:800; color:#059669; text-transform:uppercase; margin-bottom:4px;">
+                  🍃 Organik (Kertas & Kardus)
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; padding:2px 0;">
+                  <span>paper</span><strong id="live-cnt-paper">0</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; padding:2px 0;">
+                  <span>cardboard</span><strong id="live-cnt-cardboard">0</strong>
+                </div>
+              </div>
+
+              <!-- Berbahaya Section -->
+              <div style="background:#f5f3ff; border-radius:8px; padding:10px; border-left:4px solid #7c3aed;">
+                <div style="font-size:0.75rem; font-weight:800; color:#7c3aed; text-transform:uppercase; margin-bottom:4px;">
+                  ⚠️ Berbahaya (Logam / B3)
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; padding:2px 0;">
+                  <span>metal_can</span><strong id="live-cnt-metal_can" style="color:#7c3aed;">0</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: DETECTION HISTORY -->
+      <section id="tab-history" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📜 Log Riwayat Deteksi & Event Counting</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <select id="filter-macro" onchange="loadDetections()" style="background:#fff; color:#334155; border:1px solid #cbd5e1; padding:7px 12px; border-radius:8px; font-size:0.85rem;">
+                <option value="">Semua Pilahan Makro</option>
+                <option value="Anorganik">🧴 Anorganik (Plastik & Kaca)</option>
+                <option value="Organik">🍃 Organik (Kertas & Kardus)</option>
+                <option value="Berbahaya">⚠️ Berbahaya (Kaleng Logam)</option>
+              </select>
+
+              <select id="filter-class" onchange="loadDetections()" style="background:#fff; color:#334155; border:1px solid #cbd5e1; padding:7px 12px; border-radius:8px; font-size:0.85rem;">
+                <option value="">Semua 6 Kelas</option>
+                <option value="plastic_bottle">plastic_bottle</option>
+                <option value="plastic_bag">plastic_bag</option>
+                <option value="paper">paper</option>
+                <option value="cardboard">cardboard</option>
+                <option value="metal_can">metal_can</option>
+                <option value="glass_bottle">glass_bottle</option>
+              </select>
+              <select id="filter-conf" onchange="loadDetections()" style="background:#fff; color:#334155; border:1px solid #cbd5e1; padding:7px 12px; border-radius:8px; font-size:0.85rem;">
+                <option value="">Semua Confidence</option>
+                <option value="0.5">≥ 50%</option>
+                <option value="0.7">≥ 70%</option>
+                <option value="0.85">≥ 85%</option>
+              </select>
+              <button onclick="loadDetections()" class="btn btn-outline btn-sm">🔄 Refresh</button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Waktu Deteksi</th>
+                  <th>Kelas Objek</th>
+                  <th>Pilahan Makro</th>
+                  <th>Confidence</th>
+                  <th>Track ID</th>
+                  <th>Event Type</th>
+                  <th>Snapshot</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body">
+                <tr><td colspan="8" style="text-align:center; padding:24px;">Memuat riwayat...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:18px;">
+            <div id="history-page-info" style="font-size:0.85rem; color:#64748b;">Halaman 1</div>
+            <div style="display:flex; gap:8px;">
+              <button onclick="prevHistoryPage()" class="btn btn-outline btn-sm">Sebelumnya</button>
+              <button onclick="nextHistoryPage()" class="btn btn-outline btn-sm">Selanjutnya</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: ROOT CAUSE ANALYSIS (RCA) -->
+      <section id="tab-rca" class="tab-pane">
+        <div class="card" style="margin-bottom:24px;">
+          <div class="card-header">
+            <div class="card-title">🔍 Root Cause Analysis (RCA) — Pemecahan Masalah Operasional</div>
+            <button onclick="loadRCA()" class="btn btn-outline btn-sm">🔄 Refresh Analisis</button>
+          </div>
+          <p style="color:#334155; font-size:0.9rem; line-height:1.5; margin-bottom:18px;">
+            Modul RCA menggunakan metodologi terstruktur <strong>5-Whys</strong> dan diagram tulang ikan <strong>Ishikawa (Fishbone 5M+1E)</strong> 
+            untuk mengidentifikasi akar penyebab anomali limbah berbahaya, kontaminasi sampah organik, dan sumbatan mekanik pada meja sortir.
+          </p>
+
+          <!-- RCA Summary Counters -->
+          <div class="rca-summary-bar">
+            <div class="badge badge-danger" style="font-size:0.85rem; padding:8px 16px;">
+              <span class="badge-dot"></span> <span id="rca-count-active">0</span> Anomali Kritis (Aktif)
+            </div>
+            <div class="badge badge-warning" style="font-size:0.85rem; padding:8px 16px;">
+              <span class="badge-dot"></span> <span id="rca-count-investigating">0</span> Sedang Diinvestigasi
+            </div>
+            <div class="badge badge-success" style="font-size:0.85rem; padding:8px 16px;">
+              <span class="badge-dot"></span> <span id="rca-count-resolved">0</span> Tindakan Selesai
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic RCA Diagnostic Cards List -->
+        <div id="rca-diagnostics-container">
+          <div style="text-align:center; padding:30px;">Memuat diagnostik RCA...</div>
+        </div>
+      </section>
+
+      <!-- TAB 5: ANALYTICS -->
+      <section id="tab-analytics" class="tab-pane">
+
+        <!-- Header -->
+        <div style="margin-bottom:20px;">
+          <h2 style="font-size:1.1rem; font-weight:800; color:#0f172a;">📊 Analisis Agregat Pemilahan Sampah</h2>
+          <p style="color:#64748b; font-size:0.88rem; margin-top:4px;">
+            Grafik batang jumlah deteksi per kelas dan per kategori makro (Organik, Anorganik, Berbahaya), dihitung langsung dari basis data.
+          </p>
+        </div>
+
+        <!-- Row 1: Bar chart per class + Macro bar chart side by side -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+
+          <!-- Bar chart: jumlah per kelas -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">📦 Jumlah Deteksi per Kelas Sampah</div>
+            </div>
+            <div style="height:280px; position:relative; min-height:280px;">
+              <canvas id="analytics-chart-class" style="display:block;"></canvas>
+            </div>
+          </div>
+
+          <!-- Bar chart: jumlah per kategori makro -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🗂️ Distribusi Kategori Makro</div>
+            </div>
+            <div style="height:280px; position:relative; min-height:280px;">
+              <canvas id="analytics-chart-macro" style="display:block;"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: Timeline line chart full width -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📈 Tren Deteksi per Jam (24 Jam Terakhir)</div>
+            <select id="analytics-hours" onchange="loadAnalytics()" style="border:1px solid #e2e8f0; border-radius:6px; padding:4px 10px; font-size:0.82rem; color:#334155;">
+              <option value="12">12 jam</option>
+              <option value="24" selected>24 jam</option>
+              <option value="48">48 jam</option>
+              <option value="168">7 hari</option>
+            </select>
+          </div>
+          <div style="height:280px; position:relative;">
+            <canvas id="analytics-chart-timeline"></canvas>
+          </div>
+        </div>
+
+        <!-- Row 3: Summary cards -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:4px;">
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <h3>🧴 Anorganik</h3>
+              <div class="kpi-value" id="analytics-count-anorganik" style="color:#2563eb;">—</div>
+            </div>
+            <div class="kpi-icon" style="background:#eff6ff; color:#2563eb;">♻️</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <h3>🍃 Organik</h3>
+              <div class="kpi-value" id="analytics-count-organik" style="color:#059669;">—</div>
+            </div>
+            <div class="kpi-icon" style="background:#f0fdf4; color:#059669;">🌿</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <h3>⚠️ Berbahaya</h3>
+              <div class="kpi-value" id="analytics-count-berbahaya" style="color:#7c3aed;">—</div>
+            </div>
+            <div class="kpi-icon" style="background:#f5f3ff; color:#7c3aed;">☢️</div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- TAB 6: NOTIFICATIONS -->
+      <section id="tab-notifications" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🔔 Pusat Notifikasi & Alarm Sistem</div>
+            <button onclick="markAllNotificationsRead()" class="btn btn-outline btn-sm">Tandai Semua Dibaca</button>
+          </div>
+          <div id="notifications-container" class="notif-list">
+            <div style="text-align:center; padding:20px;">Memuat notifikasi...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 7: REPORTS -->
+      <section id="tab-reports" class="tab-pane">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <div class="card-title">📄 Buat Laporan PDF Resmi (ReportLab)</div>
+          </div>
+          <p style="color:#334155; font-size:0.9rem; margin-bottom:16px;">
+            Generate laporan resmi ringkasan metrik pemilahan sampah, tabel rincian kategori makro (Organik, Anorganik, Berbahaya), dan 6 kelas resmi lengkap dengan visualisasi grafik ke format PDF.
+          </p>
+          <button id="btn-generate-report" onclick="generateReport()" class="btn btn-primary">
+            ➕ Buat Laporan PDF Baru
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📑 Arsip Laporan yang Tersedia</div>
+            <button onclick="loadReports()" class="btn btn-outline btn-sm">🔄 Refresh</button>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Tanggal Dibuat</th>
+                  <th>Rentang Waktu</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="reports-table-body">
+                <tr><td colspan="5" style="text-align:center; padding:20px;">Memuat daftar laporan...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 8: SETTINGS -->
+      <section id="tab-settings" class="tab-pane">
+        <div class="card" style="max-width:720px;">
+          <div class="card-header">
+            <div class="card-title">⚙️ Konfigurasi Sistem & Model Computer Vision</div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:20px;">
+            <!-- Status Model Box -->
+            <div style="background:#f8faff; padding:16px; border-radius:12px; border:1px solid #e2e8f0;">
+              <div style="font-weight:700; font-size:0.95rem; color:#4338ca; margin-bottom:6px;">Status Bobot Model YOLO</div>
+              <div id="setting-model-status-text" style="font-size:0.88rem; color:#334155;">Memeriksa status model...</div>
+              <div style="margin-top:12px;">
+                <button onclick="triggerModelReload()" class="btn btn-outline btn-sm">
+                  🔄 Muat Ulang Model (Reload best.pt)
+                </button>
+              </div>
+            </div>
+
+            <!-- Demo Mode Toggle -->
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 0; border-bottom:1px solid #f1f5f9;">
+              <div>
+                <div style="font-weight:700; font-size:0.95rem;">Mode Simulasi / Demo Meja Pemilahan</div>
+                <div style="font-size:0.82rem; color:#64748b;">Gunakan deteksi demo simulasi jika model masih dalam tahap pelatihan.</div>
+              </div>
+              <input type="checkbox" id="setting-demo-toggle" style="width:22px; height:22px; cursor:pointer;">
+            </div>
+
+            <!-- Confidence Slider -->
+            <div style="padding-bottom:14px; border-bottom:1px solid #f1f5f9;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                <label style="font-weight:700; font-size:0.9rem;">Confidence Threshold: <span id="setting-conf-val" style="color:#2563eb;">0.40</span></label>
+              </div>
+              <input type="range" id="setting-conf-slider" min="0.1" max="0.95" step="0.05" value="0.40" style="width:100%;" oninput="document.getElementById('setting-conf-val').textContent=this.value">
+            </div>
+
+            <!-- Virtual Line Slider -->
+            <div style="padding-bottom:14px; border-bottom:1px solid #f1f5f9;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                <label style="font-weight:700; font-size:0.9rem;">Posisi Garis Virtual Penghitungan: <span id="setting-line-val" style="color:#7c3aed;">0.50</span></label>
+              </div>
+              <input type="range" id="setting-line-slider" min="0.1" max="0.9" step="0.05" value="0.50" style="width:100%;" oninput="document.getElementById('setting-line-val').textContent=this.value">
+            </div>
+
+            <div>
+              <button onclick="saveSettings()" class="btn btn-primary">Simpan Konfigurasi</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 9: REQUIREMENTS VIEWER -->
+      <section id="tab-requirements" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📋 Dokumen Kebutuhan & Spesifikasi (Folder requirements/)</div>
+          </div>
+          <p style="color:#334155; font-size:0.9rem; margin-bottom:18px;">
+            Spesifikasi PRD, SRS, Master Prompt, dan Ketentuan Tambahan yang dimuat langsung dari folder <code>requirements/</code>.
+          </p>
+
+          <div class="docs-layout">
+            <div id="docs-file-list" class="docs-nav">
+              <!-- Dynamically populated from /api/requirements -->
+            </div>
+            <div id="doc-content-viewer" class="markdown-body">
+              Pilih dokumen di sebelah kiri untuk melihat isi spesifikasi.
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- FLOATING CHATBOT ICON BUTTON (DI POJOK KANAN BAWAH) -->
+  <button id="chatbot-float-btn" class="chatbot-widget-btn" onclick="toggleChatModal()" title="Buka EcoBot AI Assistant">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    </svg>
+  </button>
+
+  <!-- FLOATING CHATBOT MODAL (POPOVER) -->
+  <div id="chat-float-modal" class="chat-modal">
+    <div class="chat-header">
+      <div class="chat-header-title">
+        <span>🤖</span> EcoBot AI Assistant
+      </div>
+      <button onclick="toggleChatModal()" style="background:none; border:none; color:#ffffff; font-size:22px; cursor:pointer; line-height:1;">&times;</button>
+    </div>
+    <div id="chat-float-messages" class="chat-body">
+      <div class="chat-bubble bot">
+        Halo! Saya <strong>EcoBot AI</strong>. Tanyakan apa saja mengenai pemilahan sampah <strong>Organik</strong>, <strong>Anorganik</strong>, <strong>Berbahaya</strong>, atau analisis <strong>RCA</strong>!
+      </div>
+    </div>
+    <div class="chat-prompts" id="chat-float-prompts">
+      <span class="chat-prompt-pill" onclick="sendFloatPrompt('Bagaimana pilahan sampah?')">♻️ Pilahan Sampah</span>
+      <span class="chat-prompt-pill" onclick="sendFloatPrompt('Analisis RCA kaleng logam berbahaya')">⚠️ RCA Kaleng</span>
+      <span class="chat-prompt-pill" onclick="sendFloatPrompt('Berapa deteksi hari ini?')">📊 Statistik</span>
+    </div>
+    <div class="chat-footer">
+      <input type="text" id="chat-float-input" class="chat-input" placeholder="Tanyakan seputar sampah atau RCA..." onkeydown="if(event.key==='Enter') sendChatMessage('float')">
+      <button onclick="sendChatMessage('float')" class="btn btn-primary btn-sm">Kirim</button>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js?v=3.7"></script>
+</body>
+</html>

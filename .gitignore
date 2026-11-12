@@ -1,0 +1,63 @@
+# Environments & Tooling
+.venv/
+env/
+venv/
+ENV/
+.env
+.env.local
+.cache/
+.tmp/
+.vscode/
+.idea/
+
+# Python & Testing
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Storage & Generated Outputs
+storage/snapshots/*
+storage/reports/*
+!storage/snapshots/.gitkeep
+!storage/reports/.gitkeep
+
+# Weights, Machine Learning Models & Runs
+runs/
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.engine
+!models/best.pt.example
+
+# Large Dataset Directories
+dataset/
+datasets/
+data/
+
+# OS specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+datasets/
+data/
+
+# OS specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
